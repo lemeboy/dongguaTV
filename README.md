@@ -30,6 +30,11 @@
 - **移动端 App**：基于现代 Web 技术封装，体验接近原生应用。
 - **PWA 支持**：支持添加到主屏幕，即点即用。
 
+### 6. 🔒 安全与访问控制
+- **全局访问密码**：支持设置全局访问密码，保护您的隐私站点。
+- **本地资源优先**：内置静态资源库，避免 CDN 劫持或加载缓慢，提升国内访问速度。
+- **远程配置加载**：支持从远程 URL 加载 `db.json` 配置文件，方便多站点统一管理。
+
 ---
 
 ## 🎨 界面与交互升级 (UI/UX Upgrades)
@@ -133,6 +138,28 @@ location /tmdb-image/ {
 }
 ```
 
+### 4. 🔒 安全配置与远程加载 (高级)
+
+为了保护您的站点或统一管理配置，可以使用以下高级功能：
+
+#### 全局访问密码
+在 `.env` 文件中设置 `ACCESS_PASSWORD` 即可开启全局密码保护。开启后，用户访问任何页面都需要输入密码。
+```env
+ACCESS_PASSWORD=your_secure_password
+```
+
+#### 远程配置文件 (db.json)
+如果您有多个站点或希望远程更新配置，可以让服务器读取远程的 `db.json` 文件。
+在 `.env` 文件中设置：
+```env
+# 远程 JSON 文件地址 (需支持 GET 请求)
+REMOTE_DB_URL=https://example.com/my-config/db.json
+```
+> **注意**：
+> 1. 配置 `REMOTE_DB_URL` 后，系统会自动优先尝试从该 URL 获取配置。
+> 2. 会有 5 分钟的内存缓存，避免频繁请求远程服务器。
+> 3. 如果远程获取失败，会自动降级使用本地的 `db.json` 文件。
+
 ---
 
 ## 📦 安装与运行 (Installation)
@@ -232,6 +259,12 @@ TMDB_PROXY_URL=
 
 # 可选：缓存类型 ('json', 'sqlite', 'memory', 'none') - 默认 json
 CACHE_TYPE=json
+
+# 可选：访问密码 (设置后需要密码才能访问)
+ACCESS_PASSWORD=
+
+# 可选：远程配置文件地址
+REMOTE_DB_URL=
 ```
 
 #### 5. 启动服务
@@ -256,6 +289,8 @@ node server.js
 | `CACHE_TYPE` | ❌ 否 | 缓存类型: `json`(默认), `sqlite`, `memory`, `none` |
 | `TMDB_PROXY_URL` | ❌ 否 | TMDB 反代地址，大陆用户需要配置 |
 | `PORT` | ❌ 否 | 服务端口，默认 3000 |
+| `ACCESS_PASSWORD` | ❌ 否 | 访问密码，保护站点不被公开访问 |
+| `REMOTE_DB_URL` | ❌ 否 | 远程 `db.json` 地址，用于统一配置管理 |
 
 #### 方案一：使用现有镜像（最快）
 无需构建，一行命令直接运行。
@@ -268,7 +303,17 @@ docker run -d -p 3000:3000 \
   --restart unless-stopped \
   ghcr.io/ednovas/dongguatv:latest
 
-# 完整配置 (包含数据持久化和大陆反代) - 推荐
+```bash
+# 1. ⚠️ 重要：先创建文件，防止 Docker 将其识别为目录
+touch db.json cache.db
+# 如果是 Windows PowerShell:
+# New-Item -ItemType File -Name db.json -Force
+# New-Item -ItemType File -Name cache.db -Force
+
+# 2. 写入默认配置 (可选，如果不写则为空)
+echo '{"sites":[]}' > db.json
+
+# 3. 完整配置启动
 docker run -d -p 3000:3000 \
   -e TMDB_API_KEY="your_api_key_here" \
   -e TMDB_PROXY_URL="https://tmdb-proxy.your-name.workers.dev" \
@@ -278,6 +323,9 @@ docker run -d -p 3000:3000 \
   --restart unless-stopped \
   ghcr.io/ednovas/dongguatv:latest
 ```
+
+> **🔴 常见错误警告**：如果启动失败且日志报错 `EISDIR: illegal operation on a directory`，说明您没有先创建 `db.json` 文件，Docker 自动创建了同名文件夹。请删除该文件夹 (`rm -rf db.json`) 并重新执行上述 `touch` 命令创建文件。
+
 
 > **注意**：如果不挂载 `-v` 卷，您的站点配置(db.json)和缓存(cache.db)将在容器重启后丢失。请确保当前目录下有 `db.json` 文件（如果没有，第一次运行后可以从容器内复制出来）。
 
@@ -318,8 +366,13 @@ docker run -d -p 3000:3000 \
           - ./cache.db:/app/cache.db
         restart: unless-stopped
     ```
+    ```
 2.  **启动**
     ```bash
+    # 同样需要先创建文件，防止挂载成目录
+    touch db.json cache.db
+    
+    # 启动服务
     docker-compose up -d
     ```
 
