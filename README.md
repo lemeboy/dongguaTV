@@ -133,18 +133,79 @@
     TMDB_PROXY_URL=https://tmdb-proxy.your-name.workers.dev
     ```
 
-#### 方案二：使用自建 Nginx 反代
+### 4. 资源站 CORS 代理 (可选/推荐)
 
-```nginx
-location /tmdb-api/ {
-    proxy_pass https://api.themoviedb.org/;
-    proxy_set_header Host api.themoviedb.org;
-}
+当服务器或用户无法直接访问某些资源站时，系统会自动通过 CORS 代理中转请求。
 
-location /tmdb-image/ {
-    proxy_pass https://image.tmdb.org/;
-    proxy_set_header Host image.tmdb.org;
-}
+#### 支持的场景
+
+| 场景 | 描述 |
+|------|------|
+| **服务器端搜索** | 服务器无法访问资源站 API 时，自动通过代理搜索 |
+| **服务器端获取详情** | 同上，获取影片详情时自动回退到代理 |
+| **用户端视频播放** | 用户浏览器无法访问视频流时，自动代理播放 |
+| **慢速线路优化** | 直连延迟 >1500ms 时，自动尝试代理，选择更快的方式 |
+
+#### 核心功能
+
+- ✅ **智能学习**：自动记住需要代理的站点（24小时有效期）
+- ✅ **慢速检测**：直连延迟超过 1.5 秒时，自动测试代理是否更快
+- ✅ **m3u8 重写**：自动重写 m3u8 文件中的 ts 分片 URL，确保视频流完整代理
+- ✅ **防盗链绕过**：自动设置正确的 Referer 和 Origin 头
+
+#### 工作原理
+
+**服务器端（搜索/详情）：**
+1. 服务器先尝试直接访问资源站 API
+2. 如果直连失败或延迟过高，自动通过 CORS 代理重试
+3. 成功后会"记住"该站点需要代理，后续请求直接使用代理
+
+**用户端（播放）：**
+1. 用户端测速时，先尝试直接访问视频流
+2. 如果直连失败或延迟 >1500ms，自动通过 CORS 代理重试
+3. 代理会重写 m3u8 内容，将 ts 分片 URL 也改为代理 URL
+4. UI 上会显示三种状态：
+   - 🟢 **直连**：用户端可直接访问
+   - 🟡 **中转**：通过代理访问
+   - 🔵 **服务**：服务器端测速（无法客户端测试）
+
+#### 部署 CORS 代理 (Cloudflare Workers)
+
+1.  **登录 [Cloudflare Dashboard](https://dash.cloudflare.com)**
+    - 进入 **Workers & Pages** → **Create Worker**
+    - 命名如 `cors-proxy`
+
+2.  **部署代理代码**
+    - 复制 `cloudflare-cors-proxy.js` 文件**全部内容**到编辑器
+    - 点击 **"Save and Deploy"**
+    - 记录 Worker URL（如 `https://cors-proxy.your-name.workers.dev`）
+
+3.  **配置 .env**
+    ```env
+    CORS_PROXY_URL=https://cors-proxy.your-name.workers.dev
+    ```
+
+4.  **（可选）绑定自定义域名**
+    - Worker 设置 → Triggers → Custom Domains → 添加域名
+
+> ⚠️ **重要**：每次更新 `cloudflare-cors-proxy.js` 文件后，需要重新部署到 Cloudflare！
+
+#### 代理工作流程图
+
+```
+用户请求 m3u8 视频
+        ↓
+   代理获取 m3u8
+        ↓
+  重写 ts 分片 URL
+   (改为经过代理)
+        ↓
+  返回修改后的 m3u8
+        ↓
+播放器请求 ts 分片
+   (通过代理,带正确 Referer)
+        ↓
+    视频正常播放 ✓
 ```
 
 ### 4. 🔒 安全配置与远程加载 (高级)
