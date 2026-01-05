@@ -56,6 +56,40 @@
         })();
     </script>
 
+    <!-- 🔍 调试：显示 User Agent 以检测 WebView 类型 -->
+    <script data-cfasync="false">
+        (function () {
+            // 只在应用内显示（非普通浏览器）
+            var isApp = navigator.userAgent.indexOf('Android') > -1 &&
+                (navigator.userAgent.indexOf('wv') > -1 || window.Capacitor);
+
+            if (isApp) {
+                window.addEventListener('load', function () {
+                    var ua = navigator.userAgent;
+                    var isGecko = ua.indexOf('Gecko/') > -1 && ua.indexOf('Firefox/') > -1;
+                    var engine = isGecko ? '🦎 GeckoView' : '📱 System WebView';
+
+                    console.log('[WebView 检测]', engine);
+                    console.log('[User Agent]', ua);
+
+                    // 显示一个临时通知
+                    var div = document.createElement('div');
+                    div.id = 'webview-debug';
+                    div.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;background:rgba(0,0,0,0.9);color:#fff;padding:10px;border-radius:8px;font-size:12px;z-index:999999;max-height:100px;overflow:auto;';
+                    div.innerHTML = '<b>' + engine + '</b><br><small>' + ua.substring(0, 100) + '...</small>';
+                    document.body.appendChild(div);
+
+                    // 5秒后自动隐藏
+                    setTimeout(function () {
+                        div.style.transition = 'opacity 0.5s';
+                        div.style.opacity = '0';
+                        setTimeout(function () { div.remove(); }, 500);
+                    }, 5000);
+                });
+            }
+        })();
+    </script>
+
     <!-- SW 版本检测和强制更新（必须在最开头） -->
     <script data-cfasync="false">
         (function () {

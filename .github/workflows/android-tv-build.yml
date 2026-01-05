@@ -46,11 +46,9 @@ jobs:
       - name: Install Node dependencies
         working-directory: android-tv
         run: |
-          # 删除旧的 lock 文件以确保 overrides/resolutions 生效
-          rm -f package-lock.json
-          # 使用 npm install (overrides 会让 @capacitor/android 解析为 @web-media/capacitor-geckoview)
           npm install --legacy-peer-deps
-          echo "✅ Dependencies installed with GeckoView override"
+          # postinstall 脚本会自动将 GeckoView 应用到 @capacitor/android
+          echo "✅ Dependencies installed"
         
       - name: Sync Capacitor Android
         working-directory: android-tv
