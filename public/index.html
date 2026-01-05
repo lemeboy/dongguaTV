@@ -2468,6 +2468,23 @@
                 transform: none !important;
             }
         }
+
+        /* 📱 Android Fullscreen Fixes */
+        body.dplayer-fullscreen-active {
+            padding-top: 0 !important;
+            margin-top: 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* Hide all potential padding blocks in fullscreen */
+        body.dplayer-fullscreen-active div[style*="padding-top"],
+        body.dplayer-fullscreen-active div[style*="height"][class*="status"],
+        body.dplayer-fullscreen-active .safe-area-spacer {
+            display: none !important;
+            height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
     </style>
 </head>
 
@@ -5058,6 +5075,29 @@
                                 });
                             });
                         }
+
+                        // 📱 安卓全屏优化：自动横屏 + 去除顶部遮挡
+                        dp.on('fullscreen', () => {
+                            try {
+                                if (screen.orientation && screen.orientation.lock) {
+                                    screen.orientation.lock('landscape').catch(e => console.warn('锁屏失败:', e));
+                                } else if (window.screen.lockOrientation) {
+                                    window.screen.lockOrientation('landscape');
+                                }
+                            } catch (e) { }
+                            document.body.classList.add('dplayer-fullscreen-active');
+                        });
+
+                        dp.on('fullscreen_cancel', () => {
+                            try {
+                                if (screen.orientation && screen.orientation.unlock) {
+                                    screen.orientation.unlock();
+                                } else if (window.screen.unlockOrientation) {
+                                    window.screen.unlockOrientation();
+                                }
+                            } catch (e) { }
+                            document.body.classList.remove('dplayer-fullscreen-active');
+                        });
 
                         // ========== 🔧 设置菜单修复 ==========
                         setTimeout(() => {
